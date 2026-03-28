@@ -3,9 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.router import router
 
 app = FastAPI(
-    title="Hackathon API",
-    description="ML-powered backend API",
-    version="1.0.0"
+    title="NL Dataset Cleaner API",
+    description="Upload a CSV and clean it using natural language commands.",
+    version="1.0.0",
 )
 
 app.add_middleware(
@@ -20,7 +20,7 @@ app.include_router(router, prefix="/api")
 
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "API is running"}
+    return {"status": "ok", "message": "NL Dataset Cleaner API is running"}
 
 if __name__ == "__main__":
     import uvicorn
