@@ -17,7 +17,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("startup")
+@app.lifespan("startup")
 def on_startup():
     init_db()
 
