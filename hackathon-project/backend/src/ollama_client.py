@@ -6,7 +6,7 @@ import json
 import httpx
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL = "llama3.2"
+MODEL = "mistral"
 
 
 def ask_ollama(prompt: str) -> str:
