@@ -5,6 +5,7 @@ const FEATURES = [
   { icon: '🧠', title: 'Plain-English Commands', desc: 'Type commands naturally — no code or syntax needed.' },
   { icon: '📊', title: 'Instant Visualizations', desc: 'Ask for a heatmap, scatter plot, or cluster diagram and see it instantly.' },
   { icon: '📈', title: 'Descriptive Statistics', desc: 'Get mean, median, mode, std, skewness and more for any column or the full dataset.' },
+  { icon: '🤖', title: 'ML Model Training',      desc: 'Train Random Forest, Logistic Regression, or Linear Regression on your cleaned data.' },
   { icon: '🔒', title: 'Safe by Design',         desc: 'All operations are whitelisted. No eval(), ever.' },
   { icon: '⬇', title: 'Download Anything',       desc: 'Export cleaned CSV, save charts as PNG, or download stats as CSV.' },
 ];
@@ -27,6 +28,12 @@ const EXAMPLES = [
     'statistics for age',
     'show mean and median of cholesterol',
     'summarize trestbps',
+  ]},
+  { label: '🤖 ML Training', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', commands: [
+    'Random Forest (auto-detects task)',
+    'Logistic Regression (classification)',
+    'Linear Regression (regression)',
+    'Feature importance + confusion matrix',
   ]},
 ];
 
@@ -55,7 +62,7 @@ export default function Home() {
       </button>
 
       {/* Example commands */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2.5rem', textAlign: 'left' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2.5rem', textAlign: 'left' }}>
         {EXAMPLES.map(({ label, color, bg, border, commands }) => (
           <div key={label} style={{ background: bg, border: `1px solid ${border}`, borderRadius: '10px', padding: '1.1rem 1.25rem' }}>
             <div style={{ fontWeight: 700, fontSize: '0.82rem', color, marginBottom: '0.65rem', letterSpacing: '0.03em' }}>
@@ -74,7 +81,7 @@ export default function Home() {
       </div>
 
       {/* Feature cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.85rem', textAlign: 'left' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.85rem', textAlign: 'left' }}>
         {FEATURES.map(({ icon, title, desc }) => (
           <div key={title} style={{ padding: '1.1rem', background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px' }}>
             <div style={{ fontSize: '1.35rem', marginBottom: '0.4rem' }}>{icon}</div>

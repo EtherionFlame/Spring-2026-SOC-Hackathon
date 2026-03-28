@@ -60,4 +60,16 @@ export async function cleanDataset(sessionId, command) {
   return res.data;
 }
 
+// ── ML Model Training ─────────────────────────────────────────────────────────
+export async function trainModel(sessionId, modelType, targetCol, featureCols, testSize = 0.2) {
+  const res = await api.post('/train', {
+    session_id: sessionId,
+    model_type: modelType,
+    target_col: targetCol,
+    feature_cols: featureCols,
+    test_size: testSize,
+  });
+  return res.data;
+}
+
 export default api;

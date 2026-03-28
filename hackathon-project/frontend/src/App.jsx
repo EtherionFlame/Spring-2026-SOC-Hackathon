@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import History from './pages/History';
 import Predict from './pages/Predict';
+import Train from './pages/Train';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/register"               element={<Register />} />
           <Route path="/history"                element={<History />} />
           <Route path="/predict"                element={<Predict />} />
+          <Route path="/train/:sessionId"       element={<Train />} />
           <Route path="*"                       element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

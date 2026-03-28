@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from src.predict import predict
 from src.utils import session_store
 from src.cleaner import clean_dataframe
+from src.trainer import train_model, SUPPORTED_MODELS
 from src.auth import (
     get_db, hash_password, verify_password,
     create_token, get_optional_user, get_current_user,
@@ -249,6 +250,48 @@ def get_history(user_id: int = Depends(get_current_user)):
         })
 
     conn.close()
+    return result
+
+
+# ─── ML Model Training: POST /api/train ──────────────────────────────────────
+
+@router.post("/train")
+def train_ml_model(payload: dict):
+    """
+    Train a machine learning model on the current session DataFrame.
+    Accepts { session_id, model_type, target_col, feature_cols, test_size? }
+    Returns metrics + base64 charts.
+    """
+    session_id  = payload.get("session_id")
+    model_type  = payload.get("model_type", "").strip()
+    target_col  = payload.get("target_col", "").strip()
+    feature_cols = payload.get("feature_cols", [])
+    test_size   = float(payload.get("test_size", 0.2))
+
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id is required.")
+    if not model_type:
+        raise HTTPException(status_code=400, detail="model_type is required.")
+    if not target_col:
+        raise HTTPException(status_code=400, detail="target_col is required.")
+    if not feature_cols:
+        raise HTTPException(status_code=400, detail="feature_cols must be a non-empty list.")
+    if model_type not in SUPPORTED_MODELS:
+        raise HTTPException(status_code=422, detail=f"model_type must be one of: {SUPPORTED_MODELS}")
+
+    entry = session_store.get(session_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    df = entry["df"]
+
+    try:
+        result = train_model(df, model_type, target_col, feature_cols, test_size)
+    except (ValueError, KeyError) as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Training error: {str(e)}")
+
     return result
 
 

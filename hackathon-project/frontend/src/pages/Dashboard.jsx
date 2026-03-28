@@ -246,6 +246,9 @@ export default function Dashboard() {
           <button onClick={handleDownload} style={btnStyle('#16a34a')}>
             ⬇ Download CSV
           </button>
+          <button onClick={() => navigate(`/train/${sessionId}`)} style={btnStyle('#7c3aed')}>
+            🤖 Train Model
+          </button>
           <button onClick={() => navigate('/upload')} style={btnStyle(null, true)}>
             ↑ Upload new file
           </button>
