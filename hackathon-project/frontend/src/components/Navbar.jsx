@@ -32,6 +32,11 @@ export default function Navbar() {
           </Link>
         );
       })}
+      {token && (
+        <Link to="/history" style={{ padding: '0.4rem 0.85rem', borderRadius: '6px', color: pathname === '/history' ? 'white' : '#9ca3af', background: pathname === '/history' ? '#374151' : 'transparent', textDecoration: 'none', fontWeight: pathname === '/history' ? 600 : 400, fontSize: '0.9rem' }}>
+          📜 History
+        </Link>
+      )}
 
       {/* Auth — pushed to the right */}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

@@ -16,7 +16,12 @@ export default function Register() {
   function validate() {
     if (!email.trim()) return 'Email is required.';
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return 'Enter a valid email address.';
-    if (password.length < 8) return 'Password must be at least 8 characters.';
+    if (password.length < 8)  return 'Password must be at least 8 characters.';
+    if (password.length > 50) return 'Password cannot exceed 50 characters.';
+    if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter.';
+    if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter.';
+    if (!/[0-9]/.test(password)) return 'Password must contain at least one number.';
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) return 'Password must contain at least one special character.';
     if (password !== confirm) return 'Passwords do not match.';
     return null;
   }
@@ -66,15 +71,33 @@ export default function Register() {
           </div>
 
           <div>
-            <label style={labelStyle}>Password <span style={{ color: '#9ca3af', fontWeight: 400 }}>(min 8 characters)</span></label>
+            <label style={labelStyle}>Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               autoComplete="new-password"
+              maxLength={50}
               style={inputStyle}
             />
+            {/* Live strength indicators */}
+            <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+              {[
+                { label: '8+ chars',   ok: password.length >= 8 },
+                { label: 'Uppercase',  ok: /[A-Z]/.test(password) },
+                { label: 'Lowercase',  ok: /[a-z]/.test(password) },
+                { label: 'Number',     ok: /[0-9]/.test(password) },
+                { label: 'Symbol',     ok: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password) },
+              ].map(({ label, ok }) => (
+                <span key={label} style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: '999px', fontWeight: 600, background: ok ? '#dcfce7' : '#f3f4f6', color: ok ? '#16a34a' : '#9ca3af' }}>
+                  {ok ? '✓' : '○'} {label}
+                </span>
+              ))}
+              <span style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem', borderRadius: '999px', fontWeight: 600, background: '#f3f4f6', color: '#9ca3af', marginLeft: 'auto' }}>
+                {password.length}/50
+              </span>
+            </div>
           </div>
 
           <div>
@@ -85,10 +108,8 @@ export default function Register() {
               onChange={(e) => setConfirm(e.target.value)}
               placeholder="••••••••"
               autoComplete="new-password"
-              style={{
-                ...inputStyle,
-                borderColor: confirm && confirm !== password ? '#fca5a5' : '#d1d5db',
-              }}
+              maxLength={50}
+              style={{ ...inputStyle, borderColor: confirm && confirm !== password ? '#fca5a5' : '#d1d5db' }}
             />
             {confirm && confirm !== password && (
               <p style={{ color: '#dc2626', fontSize: '0.78rem', marginTop: '0.3rem' }}>

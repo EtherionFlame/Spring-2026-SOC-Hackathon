@@ -48,6 +48,12 @@ export async function getSession(sessionId) {
   return res.data;
 }
 
+// ── History ───────────────────────────────────────────────────────────────────
+export async function getHistory() {
+  const res = await api.get('/history');
+  return res.data;
+}
+
 // ── NL clean command ──────────────────────────────────────────────────────────
 export async function cleanDataset(sessionId, command) {
   const res = await api.post('/clean', { session_id: sessionId, command });

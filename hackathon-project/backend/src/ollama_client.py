@@ -6,7 +6,7 @@ import json
 import httpx
 
 OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL = "mistral"
+MODEL = "llama3.2"
 
 
 def ask_ollama(prompt: str) -> str:
@@ -22,7 +22,7 @@ def ask_ollama(prompt: str) -> str:
     }
 
     try:
-        response = httpx.post(OLLAMA_URL, json=payload, timeout=30.0)
+        response = httpx.post(OLLAMA_URL, json=payload, timeout=120.0)
         response.raise_for_status()
     except httpx.ConnectError:
         raise ConnectionError(

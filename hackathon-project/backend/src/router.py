@@ -10,7 +10,7 @@ from src.utils import session_store
 from src.cleaner import clean_dataframe
 from src.auth import (
     get_db, hash_password, verify_password,
-    create_token, get_optional_user,
+    create_token, get_optional_user, get_current_user,
     db_create_session, db_log_operation,
 )
 
@@ -47,6 +47,16 @@ def register(payload: dict):
         raise HTTPException(status_code=422, detail="Invalid email address.")
     if len(password) < 8:
         raise HTTPException(status_code=422, detail="Password must be at least 8 characters.")
+    if len(password) > 50:
+        raise HTTPException(status_code=422, detail="Password cannot exceed 50 characters.")
+    if not _re.search(r'[A-Z]', password):
+        raise HTTPException(status_code=422, detail="Password must contain at least one uppercase letter.")
+    if not _re.search(r'[a-z]', password):
+        raise HTTPException(status_code=422, detail="Password must contain at least one lowercase letter.")
+    if not _re.search(r'[0-9]', password):
+        raise HTTPException(status_code=422, detail="Password must contain at least one number.")
+    if not _re.search(r'[!@#$%^&*()\-_=+\[\]{};:\'",.<>/?\\|`~]', password):
+        raise HTTPException(status_code=422, detail="Password must contain at least one special character.")
 
     conn = get_db()
     existing = conn.execute("SELECT id FROM users WHERE email = ?", (email,)).fetchone()
@@ -202,6 +212,43 @@ async def clean_dataset(payload: dict, user_id: int = Depends(get_optional_user)
     except Exception:
         pass
 
+    return result
+
+
+# ─── History: GET /api/history — past sessions for logged-in user ────────────
+
+@router.get("/history")
+def get_history(user_id: int = Depends(get_current_user)):
+    """Return all sessions + cleaning logs for the authenticated user."""
+    conn = get_db()
+
+    sessions = conn.execute(
+        """SELECT id, filename, uploaded_at
+           FROM sessions
+           WHERE user_id = ?
+           ORDER BY uploaded_at DESC""",
+        (user_id,)
+    ).fetchall()
+
+    result = []
+    for s in sessions:
+        logs = conn.execute(
+            """SELECT command, operation, column_name, rows_affected, executed_at
+               FROM cleaning_log
+               WHERE session_id = ?
+               ORDER BY executed_at ASC""",
+            (s["id"],)
+        ).fetchall()
+
+        result.append({
+            "session_id": s["id"],
+            "filename": s["filename"],
+            "uploaded_at": s["uploaded_at"],
+            "active": s["id"] in session_store,
+            "log": [dict(row) for row in logs],
+        })
+
+    conn.close()
     return result
 
 

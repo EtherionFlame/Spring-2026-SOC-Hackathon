@@ -64,6 +64,7 @@ export default function Login() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               autoComplete="current-password"
+              maxLength={50}
               style={inputStyle}
             />
           </div>

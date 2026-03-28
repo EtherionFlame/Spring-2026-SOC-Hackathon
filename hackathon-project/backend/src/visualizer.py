@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import numpy as np
-from sklearn.cluster import KMeans
 
 sns.set_theme(style="whitegrid", palette="muted")
 
@@ -134,12 +133,23 @@ def cluster_diagram(df: pd.DataFrame, column: str, params: dict) -> str:
     col2 = params.get("column2", "")
     col2 = col2 if col2 in nums and col2 != col1 else next((c for c in nums if c != col1), nums[1])
 
-    data = df[[col1, col2]].dropna()
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-    labels = kmeans.fit_predict(data)
+    data = df[[col1, col2]].dropna().values.astype(float)
+    # Simple K-Means with numpy — no sklearn needed
+    rng = np.random.default_rng(42)
+    centroids = data[rng.choice(len(data), n_clusters, replace=False)]
+    labels = np.zeros(len(data), dtype=int)
+    for _ in range(50):
+        dists = np.linalg.norm(data[:, None] - centroids[None, :], axis=2)
+        new_labels = np.argmin(dists, axis=1)
+        if np.array_equal(new_labels, labels):
+            break
+        labels = new_labels
+        for k in range(n_clusters):
+            if (labels == k).any():
+                centroids[k] = data[labels == k].mean(axis=0)
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    scatter = ax.scatter(data[col1], data[col2], c=labels,
+    scatter = ax.scatter(data[:, 0], data[:, 1], c=labels,
                          cmap="viridis", alpha=0.6, edgecolors="white", linewidths=0.3)
     plt.colorbar(scatter, ax=ax, label="Cluster")
     ax.set_xlabel(col1, fontsize=11)

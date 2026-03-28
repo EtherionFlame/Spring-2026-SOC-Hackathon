@@ -2,6 +2,39 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { getSession, cleanDataset } from '../api';
 
+// ── Download helpers ──────────────────────────────────────────────────────────
+
+function downloadCSV(filename, csvString) {
+  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function statsToCSV(cmdResult) {
+  if (cmdResult.stats_type === 'column') {
+    const rows = [['Statistic', 'Value']];
+    Object.entries(cmdResult.stats).forEach(([k, v]) => {
+      rows.push([k.replace(/_/g, ' '), v === null ? '' : v]);
+    });
+    return rows.map(r => r.join(',')).join('\n');
+  }
+  // dataset summary
+  const headers = ['Column', 'Type', 'Count', 'Nulls', 'Unique', 'Mean', 'Median', 'Mode', 'Std', 'Min', 'Max', 'Skewness'];
+  const rows = [headers];
+  cmdResult.summary.forEach(r => {
+    rows.push([
+      r.column, r.dtype, r.count, r.null_count, r.unique,
+      r.mean ?? '', r.median ?? '', r.mode ?? r.top_value ?? '',
+      r.std ?? '', r.min ?? '', r.max ?? '', r.skewness ?? '',
+    ]);
+  });
+  return rows.map(r => r.join(',')).join('\n');
+}
+
 // ── Scrollable data table ─────────────────────────────────────────────────────
 
 function DataTable({ columns, rows, caption, highlightCol, removedRows = [] }) {
@@ -161,22 +194,40 @@ export default function Dashboard() {
 
   const cols = session?.columns || [];
 
-  // Generate example chips from actual column names
-  const exampleCommands = (() => {
+  // Generate chips from actual column names
+  const cleaningChips = (() => {
     if (!cols.length) return [];
-    const suggestions = [];
     const templates = [
       (c) => `remove outliers in ${c}`,
       (c) => `fill missing values with median in ${c}`,
-      (c) => `drop rows with null values in ${c}`,
       (c) => `normalize ${c}`,
+      (c) => `drop rows with null values in ${c}`,
     ];
-    templates.forEach((fn, i) => {
-      const col = cols[i % cols.length];
-      suggestions.push(fn(col));
-    });
-    suggestions.push('drop duplicate rows');
-    return suggestions;
+    const chips = templates.map((fn, i) => fn(cols[i % cols.length]));
+    chips.push('drop duplicate rows');
+    return chips;
+  })();
+
+  const vizChips = (() => {
+    if (!cols.length) return [];
+    const c0 = cols[0];
+    const c1 = cols[1] || cols[0];
+    return [
+      'show correlation heatmap',
+      `plot distribution of ${c0}`,
+      `scatter plot of ${c0} vs ${c1}`,
+      `box plot of ${c0}`,
+      `show 3 clusters of ${c0} and ${c1}`,
+    ];
+  })();
+
+  const statsChips = (() => {
+    if (!cols.length) return [];
+    return [
+      'describe the dataset',
+      `statistics for ${cols[0]}`,
+      cols[1] ? `statistics for ${cols[1]}` : `statistics for ${cols[0]}`,
+    ].filter((v, i, a) => a.indexOf(v) === i);
   })();
 
   return (
@@ -213,15 +264,31 @@ export default function Dashboard() {
 
       {/* ── NL command input ── */}
       <section style={{ marginBottom: '2rem' }}>
-        <h2 style={sectionHead}>🧠 Clean with Natural Language</h2>
-        <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
-          Type a plain-English command. Llama 3.2 maps it to a safe pandas operation.
-        </p>
+        <h2 style={sectionHead}>🧠 Clean or Visualize — just type it</h2>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-          {exampleCommands.map((ex) => (
-            <button key={ex} onClick={() => setCommand(ex)} style={chipStyle}>{ex}</button>
-          ))}
+        {/* Two chip rows */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.85rem' }}>
+          {/* Cleaning chips */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+            <span style={chipLabel('#4f46e5')}>🧹 Clean</span>
+            {cleaningChips.map((ex) => (
+              <button key={ex} onClick={() => setCommand(ex)} style={chip('#4f46e5', '#eef2ff', '#c7d2fe')}>{ex}</button>
+            ))}
+          </div>
+          {/* Viz chips */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+            <span style={chipLabel('#0891b2')}>📊 Visualize</span>
+            {vizChips.map((ex) => (
+              <button key={ex} onClick={() => setCommand(ex)} style={chip('#0891b2', '#ecfeff', '#a5f3fc')}>{ex}</button>
+            ))}
+          </div>
+          {/* Stats chips */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+            <span style={chipLabel('#7c3aed')}>📈 Statistics</span>
+            {statsChips.map((ex) => (
+              <button key={ex} onClick={() => setCommand(ex)} style={chip('#7c3aed', '#f5f3ff', '#ddd6fe')}>{ex}</button>
+            ))}
+          </div>
         </div>
 
         <form onSubmit={handleClean} style={{ display: 'flex', gap: '0.75rem' }}>
@@ -229,7 +296,7 @@ export default function Dashboard() {
             type="text"
             value={command}
             onChange={(e) => setCommand(e.target.value)}
-            placeholder='"remove outliers in cholesterol"'
+            placeholder='e.g. "show correlation heatmap" or "remove outliers in age"'
             disabled={cmdLoading}
             style={{ flex: 1, padding: '0.75rem 1rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.95rem', outline: 'none' }}
           />
@@ -257,16 +324,89 @@ export default function Dashboard() {
 
           {/* ── Visualization result ── */}
           {cmdResult.type === 'visualization' && cmdResult.image && (
-            <div style={{ textAlign: 'center', background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '1rem' }}>
+            <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '1rem' }}>
               <img
                 src={`data:image/png;base64,${cmdResult.image}`}
                 alt={cmdResult.operation}
-                style={{ maxWidth: '100%', borderRadius: '6px' }}
+                style={{ maxWidth: '100%', borderRadius: '6px', display: 'block', margin: '0 auto' }}
               />
-              <p style={{ marginTop: '0.5rem', color: '#6b7280', fontSize: '0.8rem' }}>
-                {cmdResult.operation?.replace(/_/g, ' ')}
-                {cmdResult.column ? ` — ${cmdResult.column}` : ''}
-              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <p style={{ color: '#6b7280', fontSize: '0.8rem', margin: 0 }}>
+                  📊 {cmdResult.operation?.replace(/_/g, ' ')}
+                  {cmdResult.column ? ` — ${cmdResult.column}` : ''}
+                </p>
+                <a
+                  href={`data:image/png;base64,${cmdResult.image}`}
+                  download={`${cmdResult.operation || 'chart'}.png`}
+                  style={{ ...btnStyle('#0891b2'), textDecoration: 'none', fontSize: '0.82rem' }}
+                >
+                  ⬇ Download PNG
+                </a>
+              </div>
+            </div>
+          )}
+
+          {/* ── Statistics result ── */}
+          {cmdResult.type === 'statistics' && (
+            <div style={{ background: 'white', border: '1px solid #ddd6fe', borderRadius: '10px', overflow: 'hidden' }}>
+              <div style={{ padding: '0.6rem 1rem', background: '#f5f3ff', borderBottom: '1px solid #ddd6fe', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <span style={{ fontSize: '0.82rem', color: '#7c3aed', fontWeight: 600 }}>📈 {cmdResult.message}</span>
+                <button
+                  onClick={() => downloadCSV(
+                    `stats_${cmdResult.column || 'dataset'}.csv`,
+                    statsToCSV(cmdResult)
+                  )}
+                  style={{ padding: '0.3rem 0.75rem', background: '#7c3aed', color: 'white', border: 'none', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  ⬇ Download CSV
+                </button>
+              </div>
+
+              {/* Single column stats */}
+              {cmdResult.stats_type === 'column' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0', padding: '0.5rem' }}>
+                  {Object.entries(cmdResult.stats).map(([key, val]) => (
+                    <div key={key} style={{ padding: '0.6rem 0.85rem', borderRadius: '6px', margin: '0.25rem' }}>
+                      <div style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{key.replace(/_/g, ' ')}</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', marginTop: '0.15rem' }}>
+                        {val === null ? <span style={{ color: '#d1d5db' }}>—</span> : String(val)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Dataset summary table */}
+              {cmdResult.stats_type === 'dataset' && (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                    <thead>
+                      <tr style={{ background: '#f9fafb' }}>
+                        {['Column', 'Type', 'Count', 'Nulls', 'Unique', 'Mean', 'Median', 'Mode', 'Std', 'Min', 'Max'].map(h => (
+                          <th key={h} style={{ padding: '0.5rem 0.75rem', textAlign: 'left', color: '#6b7280', fontWeight: 600, borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cmdResult.summary.map((row, i) => (
+                        <tr key={i} style={{ background: i % 2 === 0 ? 'white' : '#f9fafb' }}>
+                          <td style={{ ...statsTd, fontWeight: 600, color: '#4f46e5', fontFamily: 'monospace' }}>{row.column}</td>
+                          <td style={{ ...statsTd, color: '#9ca3af', fontFamily: 'monospace' }}>{row.dtype}</td>
+                          <td style={statsTd}>{row.count}</td>
+                          <td style={{ ...statsTd, color: row.null_count > 0 ? '#dc2626' : '#6b7280' }}>{row.null_count}</td>
+                          <td style={statsTd}>{row.unique}</td>
+                          <td style={statsTd}>{row.mean ?? '—'}</td>
+                          <td style={statsTd}>{row.median ?? '—'}</td>
+                          <td style={statsTd}>{row.mode ?? row.top_value ?? '—'}</td>
+                          <td style={statsTd}>{row.std ?? '—'}</td>
+                          <td style={statsTd}>{row.min ?? '—'}</td>
+                          <td style={statsTd}>{row.max ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -373,6 +513,14 @@ const chipStyle = {
   fontWeight: 500,
 };
 
+function chip(color, bg, border) {
+  return { padding: '0.25rem 0.65rem', background: bg, color, border: `1px solid ${border}`, borderRadius: '999px', fontSize: '0.76rem', cursor: 'pointer', fontWeight: 500 };
+}
+
+function chipLabel(color) {
+  return { fontSize: '0.72rem', fontWeight: 700, color, padding: '0.2rem 0.5rem', background: 'transparent', border: 'none', whiteSpace: 'nowrap', letterSpacing: '0.03em' };
+}
+
 function btnStyle(bg, outline = false) {
   return {
     padding: '0.55rem 1.1rem',
@@ -386,6 +534,8 @@ function btnStyle(bg, outline = false) {
     whiteSpace: 'nowrap',
   };
 }
+
+const statsTd = { padding: '0.45rem 0.75rem', color: '#374151', borderBottom: '1px solid #f3f4f6', whiteSpace: 'nowrap' };
 
 function diffHead(side) {
   return {

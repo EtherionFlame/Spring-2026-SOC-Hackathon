@@ -9,10 +9,11 @@ Flow:
 """
 
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
+import numpy as np
 
 from src.ollama_client import ask_ollama, extract_json
 from src.visualizer import VISUALIZATION_OPERATIONS, generate_visualization
+from src.stats import STATS_OPERATIONS, compute_statistics
 
 # ── Operation whitelists ───────────────────────────────────────────────────────
 
@@ -28,7 +29,7 @@ CLEANING_OPERATIONS = [
     "rename_column",
 ]
 
-SUPPORTED_OPERATIONS = CLEANING_OPERATIONS + VISUALIZATION_OPERATIONS
+SUPPORTED_OPERATIONS = CLEANING_OPERATIONS + VISUALIZATION_OPERATIONS + STATS_OPERATIONS
 
 
 # ── Prompt builder ─────────────────────────────────────────────────────────────
@@ -36,6 +37,7 @@ SUPPORTED_OPERATIONS = CLEANING_OPERATIONS + VISUALIZATION_OPERATIONS
 def _build_prompt(command: str, columns: list[str]) -> str:
     cleaning_list = "\n".join(f"  - {op}" for op in CLEANING_OPERATIONS)
     viz_list = "\n".join(f"  - {op}" for op in VISUALIZATION_OPERATIONS)
+    stats_list = "\n".join(f"  - {op}" for op in STATS_OPERATIONS)
     cols_str = ", ".join(columns)
     return f"""You are a data assistant. Given a natural language command and column names, return ONLY a JSON object.
 
@@ -47,14 +49,18 @@ Cleaning operations:
 Visualization operations:
 {viz_list}
 
+Statistics operations:
+{stats_list}
+
 Rules:
 - "operation" must be exactly one value from the lists above.
-- "column" must be one of the available columns (or null for drop_duplicates / correlation_heatmap).
+- "column" must be one of the available columns, or null for: drop_duplicates, correlation_heatmap, statistics (whole dataset).
 - "params" usage:
     - rename_column: {{"new_name": "..."}}
     - scatter_plot / cluster_diagram: {{"column2": "<second column name>"}}
     - cluster_diagram: optionally {{"n_clusters": 3}}
     - box_plot grouped: {{"group_by": "<column name>"}}
+- For statistics: use column name if user asks about a specific column, null if they want full dataset summary.
 - Return ONLY valid JSON. No markdown, no explanation.
 
 Command: "{command}"
@@ -98,8 +104,11 @@ def _execute(df: pd.DataFrame, operation: str, column: str | None, params: dict)
     elif operation == "normalize":
         _require_numeric(df, column)
         new_df = df.copy()
-        scaler = MinMaxScaler()
-        new_df[[column]] = scaler.fit_transform(new_df[[column]])
+        col_min = new_df[column].min()
+        col_max = new_df[column].max()
+        if col_max - col_min == 0:
+            raise ValueError(f"Column '{column}' has zero variance — cannot normalize.")
+        new_df[column] = (new_df[column] - col_min) / (col_max - col_min)
 
     elif operation == "encode_onehot":
         new_df = pd.get_dummies(df, columns=[column], prefix=column)
@@ -175,6 +184,11 @@ def clean_dataframe(df: pd.DataFrame, command: str, columns: list[str]) -> tuple
     if operation in VISUALIZATION_OPERATIONS:
         viz_result = generate_visualization(df, operation, column, params)
         return df, viz_result
+
+    # 5b. Route to stats — does NOT modify df
+    if operation in STATS_OPERATIONS:
+        stats_result = compute_statistics(df, column)
+        return df, stats_result
 
     # 5b. Capture before state (up to 20 rows) for cleaning ops
     before_preview = df.head(20).fillna("").to_dict(orient="records")
