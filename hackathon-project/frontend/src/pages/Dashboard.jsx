@@ -159,6 +159,8 @@ export default function Dashboard() {
     </main>
   );
 
+  const cols = session?.columns || [];
+
   // Generate example chips from actual column names
   const exampleCommands = (() => {
     if (!cols.length) return [];
@@ -176,8 +178,6 @@ export default function Dashboard() {
     suggestions.push('drop duplicate rows');
     return suggestions;
   })();
-
-  const cols = session?.columns || [];
 
   return (
     <main style={{ maxWidth: '1100px', margin: '2rem auto', padding: '0 1.5rem' }}>
