@@ -160,14 +160,39 @@ def clean_dataframe(df: pd.DataFrame, command: str, columns: list[str]) -> tuple
     if column and column not in df.columns:
         raise KeyError(f"Column '{column}' not found in dataset. Available: {list(df.columns)}")
 
-    # 5. Capture before preview
-    before_preview = df.head(5).fillna("").to_dict(orient="records")
+    # 5. Capture before state (up to 20 rows)
+    before_preview = df.head(20).fillna("").to_dict(orient="records")
 
     # 6. Execute
     new_df, rows_affected = _execute(df, operation, column, params)
 
-    # 7. Capture after preview
-    after_preview = new_df.head(5).fillna("").to_dict(orient="records")
+    # 7. Capture after preview (up to 20 rows)
+    after_preview = new_df.head(20).fillna("").to_dict(orient="records")
+
+    # 8. Find removed rows (rows in df that are no longer in new_df), up to 20
+    removed_rows: list = []
+    if len(new_df) < len(df):
+        removed_idx = df.index.difference(new_df.index)
+        removed_rows = (
+            df.loc[removed_idx]
+            .head(20)
+            .fillna("")
+            .to_dict(orient="records")
+        )
+
+    # 9. Find modified rows (same index, different values), up to 20
+    modified_rows: list = []
+    if len(new_df) == len(df) and column and column in new_df.columns:
+        shared_idx = df.index.intersection(new_df.index)
+        changed_mask = df.loc[shared_idx, column] != new_df.loc[shared_idx, column]
+        changed_idx = shared_idx[changed_mask][:20]
+        if len(changed_idx) > 0:
+            before_vals = df.loc[changed_idx].fillna("").to_dict(orient="records")
+            after_vals = new_df.loc[changed_idx].fillna("").to_dict(orient="records")
+            modified_rows = [
+                {"before": b, "after": a}
+                for b, a in zip(before_vals, after_vals)
+            ]
 
     result = {
         "message": f"Successfully applied '{operation}'" + (f" on '{column}'" if column else ""),
@@ -176,6 +201,8 @@ def clean_dataframe(df: pd.DataFrame, command: str, columns: list[str]) -> tuple
         "rows_affected": rows_affected,
         "before_preview": before_preview,
         "after_preview": after_preview,
+        "removed_rows": removed_rows,
+        "modified_rows": modified_rows,
     }
 
     return new_df, result

@@ -3,7 +3,7 @@ import uuid
 
 import pandas as pd
 from fastapi import APIRouter, HTTPException, UploadFile, File
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from src.predict import predict
 from src.utils import session_store
@@ -128,3 +128,26 @@ async def clean_dataset(payload: dict):
     session_store[session_id]["df"] = new_df
 
     return result
+
+
+# ─── Task 4+: GET /api/download/{session_id} — download cleaned CSV ──────────
+
+@router.get("/download/{session_id}")
+def download_csv(session_id: str):
+    """Stream the current (cleaned) DataFrame back as a CSV file download."""
+    entry = session_store.get(session_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    df: pd.DataFrame = entry["df"]
+    filename = entry["filename"].replace(".csv", "_cleaned.csv")
+
+    csv_buffer = io.StringIO()
+    df.to_csv(csv_buffer, index=False)
+    csv_buffer.seek(0)
+
+    return StreamingResponse(
+        iter([csv_buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
