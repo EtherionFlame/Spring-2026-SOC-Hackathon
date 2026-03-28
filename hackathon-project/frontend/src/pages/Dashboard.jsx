@@ -159,13 +159,23 @@ export default function Dashboard() {
     </main>
   );
 
-  const exampleCommands = [
-    'remove outliers in cholesterol',
-    'fill missing values with median in age',
-    'drop rows with null values in trestbps',
-    'normalize chol column',
-    'drop duplicate rows',
-  ];
+  // Generate example chips from actual column names
+  const exampleCommands = (() => {
+    if (!cols.length) return [];
+    const suggestions = [];
+    const templates = [
+      (c) => `remove outliers in ${c}`,
+      (c) => `fill missing values with median in ${c}`,
+      (c) => `drop rows with null values in ${c}`,
+      (c) => `normalize ${c}`,
+    ];
+    templates.forEach((fn, i) => {
+      const col = cols[i % cols.length];
+      suggestions.push(fn(col));
+    });
+    suggestions.push('drop duplicate rows');
+    return suggestions;
+  })();
 
   const cols = session?.columns || [];
 

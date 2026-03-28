@@ -1,51 +1,54 @@
 import axios from 'axios';
 
+const SESSION_KEY = 'nl_cleaner_auth';
+
 const api = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
-// ── Legacy / scaffold ────────────────────────────────────────────────────────
+// Attach JWT from sessionStorage on every request (if present)
+api.interceptors.request.use((config) => {
+  try {
+    const stored = sessionStorage.getItem(SESSION_KEY);
+    if (stored) {
+      const { token } = JSON.parse(stored);
+      if (token) config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return config;
+});
 
+// ── Health / scaffold ─────────────────────────────────────────────────────────
 export const checkHealth = () => api.get('/health');
 export const runPrediction = (payload) => api.post('/predict', payload);
 
-// ── Task 2: File Upload ───────────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────────────────
+export const authRegister = (email, password) =>
+  api.post('/auth/register', { email, password }).then((r) => r.data);
 
-/**
- * Upload a CSV file to the backend.
- * @param {File} file
- * @returns {Promise<{ session_id, filename, total_rows, total_columns, columns, preview }>}
- */
+export const authLogin = (email, password) =>
+  api.post('/auth/login', { email, password }).then((r) => r.data);
+
+// ── File upload ───────────────────────────────────────────────────────────────
 export async function uploadCSV(file) {
   const formData = new FormData();
   formData.append('file', file);
-
-  const res = await axios.post('/api/upload', formData, {
+  const res = await api.post('/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return res.data;
 }
 
-// ── Task 2: Session info ──────────────────────────────────────────────────────
-
-/**
- * Fetch current session metadata + preview.
- * @param {string} sessionId
- */
+// ── Session ───────────────────────────────────────────────────────────────────
 export async function getSession(sessionId) {
   const res = await api.get(`/session/${sessionId}`);
   return res.data;
 }
 
-// ── Task 4 (stub): NL clean command ──────────────────────────────────────────
-
-/**
- * Send a natural-language cleaning command to the backend.
- * Full implementation in Task 4 (Ollama classifier).
- * @param {string} sessionId
- * @param {string} command
- */
+// ── NL clean command ──────────────────────────────────────────────────────────
 export async function cleanDataset(sessionId, command) {
   const res = await api.post('/clean', { session_id: sessionId, command });
   return res.data;
