@@ -245,7 +245,7 @@ export default function Dashboard() {
         )}
       </section>
 
-      {/* ── Latest clean result ── */}
+      {/* ── Latest result (cleaning or visualization) ── */}
       {cmdResult && (
         <section style={{ marginBottom: '2rem' }}>
           <div style={{ padding: '0.75rem 1rem', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', marginBottom: '1rem', color: '#166534', fontSize: '0.875rem' }}>
@@ -255,8 +255,23 @@ export default function Dashboard() {
             {cmdResult.column && ` on "${cmdResult.column}"`}
           </div>
 
-          {/* Before / After side by side */}
-          {cmdResult.before_preview && cmdResult.after_preview && (
+          {/* ── Visualization result ── */}
+          {cmdResult.type === 'visualization' && cmdResult.image && (
+            <div style={{ textAlign: 'center', background: 'white', border: '1px solid #e5e7eb', borderRadius: '10px', padding: '1rem' }}>
+              <img
+                src={`data:image/png;base64,${cmdResult.image}`}
+                alt={cmdResult.operation}
+                style={{ maxWidth: '100%', borderRadius: '6px' }}
+              />
+              <p style={{ marginTop: '0.5rem', color: '#6b7280', fontSize: '0.8rem' }}>
+                {cmdResult.operation?.replace(/_/g, ' ')}
+                {cmdResult.column ? ` — ${cmdResult.column}` : ''}
+              </p>
+            </div>
+          )}
+
+          {/* ── Cleaning result — Before / After ── */}
+          {cmdResult.type !== 'visualization' && cmdResult.before_preview && cmdResult.after_preview && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
               <div>
                 <h3 style={diffHead('before')}>Before</h3>
@@ -304,10 +319,12 @@ export default function Dashboard() {
             />
           )}
 
-          {/* Download button after each operation */}
-          <button onClick={handleDownload} style={{ ...btnStyle('#16a34a'), marginTop: '0.75rem' }}>
-            ⬇ Download Updated CSV
-          </button>
+          {/* Download button — only shown for cleaning ops */}
+          {cmdResult.type !== 'visualization' && (
+            <button onClick={handleDownload} style={{ ...btnStyle('#16a34a'), marginTop: '0.75rem' }}>
+              ⬇ Download Updated CSV
+            </button>
+          )}
         </section>
       )}
 

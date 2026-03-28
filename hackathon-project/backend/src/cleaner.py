@@ -12,10 +12,11 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
 from src.ollama_client import ask_ollama, extract_json
+from src.visualizer import VISUALIZATION_OPERATIONS, generate_visualization
 
-# ── Operation whitelist ────────────────────────────────────────────────────────
+# ── Operation whitelists ───────────────────────────────────────────────────────
 
-SUPPORTED_OPERATIONS = [
+CLEANING_OPERATIONS = [
     "drop_nulls",
     "fill_median",
     "fill_mean",
@@ -27,23 +28,33 @@ SUPPORTED_OPERATIONS = [
     "rename_column",
 ]
 
+SUPPORTED_OPERATIONS = CLEANING_OPERATIONS + VISUALIZATION_OPERATIONS
+
 
 # ── Prompt builder ─────────────────────────────────────────────────────────────
 
 def _build_prompt(command: str, columns: list[str]) -> str:
-    ops_list = "\n".join(f"  - {op}" for op in SUPPORTED_OPERATIONS)
+    cleaning_list = "\n".join(f"  - {op}" for op in CLEANING_OPERATIONS)
+    viz_list = "\n".join(f"  - {op}" for op in VISUALIZATION_OPERATIONS)
     cols_str = ", ".join(columns)
-    return f"""You are a data-cleaning assistant. Given a natural language command and a list of column names, return ONLY a JSON object with no explanation.
+    return f"""You are a data assistant. Given a natural language command and column names, return ONLY a JSON object.
 
 Available columns: {cols_str}
 
-Supported operations:
-{ops_list}
+Cleaning operations:
+{cleaning_list}
+
+Visualization operations:
+{viz_list}
 
 Rules:
-- "operation" must be exactly one of the supported operations above.
-- "column" must be one of the available columns (or null for drop_duplicates).
-- "params" should include "new_name" only for rename_column.
+- "operation" must be exactly one value from the lists above.
+- "column" must be one of the available columns (or null for drop_duplicates / correlation_heatmap).
+- "params" usage:
+    - rename_column: {{"new_name": "..."}}
+    - scatter_plot / cluster_diagram: {{"column2": "<second column name>"}}
+    - cluster_diagram: optionally {{"n_clusters": 3}}
+    - box_plot grouped: {{"group_by": "<column name>"}}
 - Return ONLY valid JSON. No markdown, no explanation.
 
 Command: "{command}"
@@ -160,7 +171,12 @@ def clean_dataframe(df: pd.DataFrame, command: str, columns: list[str]) -> tuple
     if column and column not in df.columns:
         raise KeyError(f"Column '{column}' not found in dataset. Available: {list(df.columns)}")
 
-    # 5. Capture before state (up to 20 rows)
+    # 5a. Route to visualizer — does NOT modify df
+    if operation in VISUALIZATION_OPERATIONS:
+        viz_result = generate_visualization(df, operation, column, params)
+        return df, viz_result
+
+    # 5b. Capture before state (up to 20 rows) for cleaning ops
     before_preview = df.head(20).fillna("").to_dict(orient="records")
 
     # 6. Execute
