@@ -2,7 +2,7 @@ import io
 import uuid
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from src.predict import predict

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { getSession, cleanDataset } from '../api';
 
@@ -69,22 +69,22 @@ function ModifiedTable({ columns, modifiedRows, column }) {
         </thead>
         <tbody>
           {modifiedRows.map(({ before, after }, i) => (
-            <>
-              <tr key={`b-${i}`} style={{ background: '#fef2f2' }}>
+            <React.Fragment key={i}>
+              <tr style={{ background: '#fef2f2' }}>
                 {columns.map((col) => (
                   <td key={col} style={{ padding: '0.35rem 0.75rem', color: col === column ? '#dc2626' : '#6b7280', borderBottom: 'none', whiteSpace: 'nowrap', textDecoration: col === column ? 'line-through' : 'none', fontSize: '0.8rem' }}>
                     {before[col] === '' ? <span style={{ fontStyle: 'italic', color: '#d1d5db' }}>null</span> : String(before[col] ?? '')}
                   </td>
                 ))}
               </tr>
-              <tr key={`a-${i}`} style={{ background: '#f0fdf4', borderBottom: '1px solid #e5e7eb' }}>
+              <tr style={{ background: '#f0fdf4', borderBottom: '1px solid #e5e7eb' }}>
                 {columns.map((col) => (
                   <td key={col} style={{ padding: '0.35rem 0.75rem', color: col === column ? '#16a34a' : '#374151', whiteSpace: 'nowrap', fontWeight: col === column ? 600 : 400 }}>
                     {after[col] === '' ? <span style={{ fontStyle: 'italic', color: '#d1d5db' }}>null</span> : String(after[col] ?? '')}
                   </td>
                 ))}
               </tr>
-            </>
+            </React.Fragment>
           ))}
         </tbody>
       </table>
