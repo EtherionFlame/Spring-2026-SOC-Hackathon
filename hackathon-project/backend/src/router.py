@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from src.predict import predict
 from src.utils import session_store
+from src.cleaner import clean_dataframe
 
 router = APIRouter()
 
@@ -89,13 +90,13 @@ def get_session(session_id: str):
     }
 
 
-# ─── Task 4 stub: POST /api/clean (wired up in Task 4) ───────────────────────
+# ─── Task 4: POST /api/clean — NL → Mistral → pandas ────────────────────────
 
 @router.post("/clean")
 async def clean_dataset(payload: dict):
     """
-    Placeholder — full implementation in Task 4 (NL → Ollama → pandas).
-    Expects: { "session_id": str, "command": str }
+    Accepts { session_id, command }, runs the NL → Mistral → pandas pipeline,
+    updates the session DataFrame, and returns a before/after result.
     """
     session_id = payload.get("session_id")
     command = payload.get("command", "").strip()
@@ -107,8 +108,23 @@ async def clean_dataset(payload: dict):
     if not entry:
         raise HTTPException(status_code=404, detail="Session not found.")
 
-    # Stub response until Task 4 wires in the Ollama classifier
-    return JSONResponse(
-        status_code=501,
-        content={"detail": "NL classifier not yet implemented — coming in Task 4."},
-    )
+    df: pd.DataFrame = entry["df"]
+    columns = list(df.columns)
+
+    try:
+        new_df, result = clean_dataframe(df, command, columns)
+    except ConnectionError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except KeyError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except TypeError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+    # Persist the cleaned DataFrame back into the session
+    session_store[session_id]["df"] = new_df
+
+    return result

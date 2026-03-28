@@ -17,7 +17,7 @@ export default function Home() {
       </h1>
       <p style={{ fontSize: '1.125rem', color: '#6b7280', marginBottom: '2.5rem', lineHeight: 1.6 }}>
         Clean messy CSVs using plain English. Powered by{' '}
-        <strong style={{ color: '#4f46e5' }}>Llama 3 (Ollama)</strong> + FastAPI + React.
+        <strong style={{ color: '#4f46e5' }}>Llama 3.2 (Ollama)</strong> + FastAPI + React.
       </p>
 
       <button
